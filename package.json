@@ -1,0 +1,27 @@
+{
+  "name": "project2-backend",
+  "version": "1.0.0",
+  "description": "intro to backend",
+  "homepage": "https://github.com/Kuranayami/Project2-backend#readme",
+  "bugs": {
+    "url": "https://github.com/Kuranayami/Project2-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kuranayami/Project2-backend.git"
+  },
+  "license": "ISC",
+  "author": "De Vera",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+  "start": "node backend/src/index.js",
+  "dev": "nodemon backend/src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "mongoose": "^9.4.1",
+    "nodemon": "^3.1.14"
+  }
+}
