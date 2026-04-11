@@ -4,7 +4,7 @@ import cors from "cors";
 const app = express();
 
 app.use(cors({
-  origin: "https://kurayamibackend.onrender.com",
+  origin: "frontend-neon-five-99i1f4bbb9.vercel.app",
   credentials: true
 }));
 
