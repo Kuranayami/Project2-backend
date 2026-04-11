@@ -1,27 +1,27 @@
 import mongoose, { Schema } from "mongoose";
 
-const postSchema =  new Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        description: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        age: {
-            type: Number,
-            required: true,
-            min: 1,
-            max: 150,
-        }
-    },
-    {
-        timestamps: true
-    }
-)
+const commentSchema = new Schema({
+  text: { type: String, required: true },
+  author: { type: Schema.Types.ObjectId, ref: 'User' },
+  authorName: { type: String, default: 'Anonymous' },
+  createdAt: { type: Date, default: Date.now }
+});
 
-export const Post = mongoose.model("Post", postSchema);
+const postSchema = new Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    content: { type: String, required: true, trim: true },
+    author: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    authorName: { type: String, default: 'Unknown' },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    comments: [commentSchema]
+  },
+  { timestamps: true }
+);
+
+const Post = mongoose.model("Post", postSchema);
+export default Post;

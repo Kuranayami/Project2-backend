@@ -1,55 +1,133 @@
-import { Post } from "../models/post.model.js";
+import Post from '../models/post.model.js';
 
-//create a post
-const createPost = async (req, res) => {
-     try {
-        const { name, description, age } = req.body;
+// Helper to check ownership
+const checkOwnership = (post, userId) => {
+  return post.author?.toString() === userId;
+};
 
-    if (!name  || !description || !age) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
-        const post = await Post.create({ name, description, age });
-        res.status(201).json({ message: "Post Created Successfully", post });
-    } catch (error) {
-         res.status(500).json({ message: "Error creating post", error });
+export const getPosts = async (req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.status(200).json(posts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const createPost = async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    const userId = req.user?._id || req.user?.id;
+    
+    if (!title || !content) {
+      return res.status(400).json({ message: 'Title and content required' });
     }
-}
 
-const getPosts = async (req, res) => {
-    try {
-        const posts = await Post.find();
-        res.status(200).json(posts);
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching posts", error });
+    if (!userId) {
+      return res.status(401).json({ message: 'Must be logged in to create post' });
     }
-}
 
-const updatePost = async (req, res) => {
-    try {
-        //basics validation if the body is empty or not
-        if (Object.keys(req.body).length === 0) {
-            return res. res.status(400).json({ message: "Request body cannot be empty" });
-        }
+    const post = await Post.create({ 
+      title, 
+      content,
+      author: userId,
+      authorName: req.user?.username || req.user?.email || 'Unknown'
+    });
+    
+    res.status(201).json(post);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
-        const post = await Post.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        
-        if (!post) return res.status(404).json({ message: "Post not found" });
+export const updatePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    const userId = req.user?._id || req.user?.id;
+    
+    const post = await Post.findById(id);
+    
+    if (!post) return res.status(404).json({ message: 'Post not found' });
 
-        res.status(200).json({ message: "Post Updated Successfully", post });
-
-    } catch (error) {
-        res.stratus(500).json ({ message: "Error updating post", error });
+    if (!checkOwnership(post, userId)) {
+      return res.status(403).json({ message: 'You can only edit your own posts' });
     }
-}
+    
+    post.title = title || post.title;
+    post.content = content || post.content;
+    await post.save();
+    
+    res.status(200).json(post);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
-const deletePost = async (req, res) => {
-    try {
-        const deleted = await Post.findByIdAndDelete(req.params.id);
-        if (!deleted) return res.status(404).json ({ message: "Post not found" });
-        res.status(200).json ({ message: "Post Deleted Successfully" });
-    } catch (error) {
-        res.status(500).json({ message: "Error deleting post", error: error.message });
+export const deletePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id || req.user?.id;
+    const userRole = req.user?.role;
+
+    const post = await Post.findById(id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    if (userRole !== 'admin' && !checkOwnership(post, userId)) {
+      return res.status(403).json({ message: 'You can only delete your own posts' });
     }
-}
 
-export { createPost, getPosts, updatePost, deletePost };
+    await Post.findByIdAndDelete(id);
+    res.status(200).json({ message: 'Post deleted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const likePost = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?._id || req.user?.id;
+
+    if (!userId) return res.status(401).json({ message: 'Must be logged in to like' });
+
+    const post = await Post.findById(id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const alreadyLiked = post.likes.some(uid => uid.toString() === userId.toString());
+
+    if (alreadyLiked) {
+      await Post.findByIdAndUpdate(id, { $pull: { likes: userId } });
+    } else {
+      await Post.findByIdAndUpdate(id, { $addToSet: { likes: userId } });
+    }
+
+    const updated = await Post.findById(id);
+    res.status(200).json({ likes: updated.likes.length, liked: !alreadyLiked });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+export const addComment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+    const userId = req.user?._id || req.user?.id;
+    
+    if (!text) return res.status(400).json({ message: 'Comment text required' });
+    
+    const post = await Post.findById(id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    
+    post.comments.push({ 
+      text,
+      author: userId,
+      authorName: req.user?.username || 'Anonymous'
+    });
+    await post.save();
+    
+    res.status(200).json({ comments: post.comments });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
